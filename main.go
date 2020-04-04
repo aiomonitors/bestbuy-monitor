@@ -1,16 +1,66 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/aiomonitors/godiscord"
+	proxymanager "github.com/aiomonitors/goproxymanager"
 	"github.com/fatih/color"
 )
 
-func availability(link string) (bool, error) {
+type Config struct {
+	Webhook   string   `json:"webhook"`
+	Links     []string `json:"links"`
+	Color     string   `json:"color"`
+	Groupname string   `json:"groupname"`
+}
+
+type Monitor struct {
+	Config       Config
+	Availability map[string]bool
+	Manager      proxymanager.ProxyManager
+	UseProxies   bool
+}
+
+type ProductInfo struct {
+	Name         string `json:"name"`
+	SKU          string `json:"sku"`
+	Availability bool   `json:"availability"`
+	Link         string `json:"link"`
+	Image        string `json:"image"`
+	Exec         string `json:"exec"`
+}
+
+func getTime() string {
+	return time.Now().Format("15:02:06.111")
+}
+
+func printErr(err error) {
+	color.Red("[ %s ] Error in monitor %v", getTime(), err)
+}
+
+func greenMessage(msg string) {
+	color.Green("[ %s ] %s", getTime(), msg)
+}
+
+func yellowMessage(msg string) {
+	color.Yellow("[ %s ] %s", getTime(), msg)
+}
+
+func redMessage(msg string) {
+	color.Red("[ %s ] %s", getTime(), msg)
+}
+
+func availability(link string) (*ProductInfo, error) {
+	start := time.Now()
+
 	headers := map[string]string{
 		"authority":                 "www.bestbuy.com",
 		"cache-control":             "max-age=0",
@@ -26,7 +76,7 @@ func availability(link string) (bool, error) {
 	}
 	req, reqErr := http.NewRequest("GET", link, nil)
 	if reqErr != nil {
-		return false, reqErr
+		return &ProductInfo{}, reqErr
 	}
 
 	client := &http.Client{}
@@ -35,39 +85,112 @@ func availability(link string) (bool, error) {
 	}
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		return false, resErr
+		return &ProductInfo{}, resErr
 	}
 	defer res.Body.Close()
 
 	document, documentErr := goquery.NewDocumentFromReader(res.Body)
 	if documentErr != nil {
-		return false, documentErr
+		return &ProductInfo{}, documentErr
 	}
 
 	name := document.Find("div.sku-title > h1").Text()
 	sku := document.Find("div.sku.product-data > span.product-data-value.body-copy").Text()
 	buttonText := document.Find(".fulfillment-add-to-cart-button > div").Find("button").Text()
+	image, _ := document.Find("div.primary-image-container > button > img").Attr("src")
 
-	color.Blue("Name: %s", name)
-	color.Blue("SKU: %s", sku)
-	color.Blue("Button Text: %s", buttonText)
+	elapsed := fmt.Sprintf("%s", time.Since(start))
+
 	if buttonText != "" && buttonText == "Add to Cart" {
-		return true, nil
+		return &ProductInfo{name, sku, true, link, image, elapsed}, nil
 	}
-	return false, nil
+	return &ProductInfo{name, sku, false, link, image, elapsed}, nil
+}
+
+func NewMonitor(pathToConfig string, proxyPath string) (*Monitor, error) {
+	m := Monitor{}
+
+	//Proxy initialization
+	if proxyPath != "" {
+		manager, managerErr := proxymanager.NewManager(proxyPath)
+		if managerErr != nil {
+			m.Manager = *manager
+		} else {
+			m.UseProxies = false
+			color.Red("Error loading proxy file")
+		}
+	} else {
+		m.UseProxies = false
+	}
+	//Config initialization
+	if pathToConfig != "" {
+		file, openErr := ioutil.ReadFile(pathToConfig)
+		if openErr != nil {
+			return nil, openErr
+		}
+		var c Config
+		unmarshalError := json.Unmarshal(file, &c)
+		if unmarshalError != nil {
+			return nil, unmarshalError
+		}
+		m.Config = c
+	} else {
+		return nil, errors.New("Need to provide a config file")
+	}
+	//Initialize links
+	m.Availability = make(map[string]bool)
+	for _, link := range m.Config.Links {
+		req, reqErr := availability(link)
+		if reqErr != nil {
+			redMessage(fmt.Sprintf("%s error getting link", link))
+			m.Availability[link] = true
+		} else {
+			greenMessage(fmt.Sprintf("Initialized %s Availability: %v", req.Name, req.Availability))
+			m.Availability[link] = req.Availability
+		}
+	}
+	return &m, nil
+}
+
+func (m Monitor) Monitor() {
+	i := true
+	for i == true {
+		for _, link := range m.Config.Links {
+			req, reqErr := availability(link)
+			greenMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, req.SKU))
+			if reqErr != nil {
+				redMessage(fmt.Sprintf("Error initializing link %s %v", link, reqErr))
+			} else {
+				if m.Availability[link] == false && req.Availability == true {
+					m.Availability[link] = true
+					m.SendEmbed(req)
+				} else if m.Availability[link] == true && req.Availability == false {
+					m.Availability[link] = false
+					redMessage(fmt.Sprintf("%s is out of stock", req.SKU))
+				}
+			}
+		}
+		time.Sleep(time.Millisecond * 1500)
+	}
+}
+
+func (m Monitor) SendEmbed(p *ProductInfo) {
+	e := godiscord.NewEmbed(p.Name, fmt.Sprintf("In Stock: True"), p.Link)
+	e.SetFooter(m.Config.Groupname, "")
+	e.SetColor("#16A085")
+	e.SetAuthor("Best Buy Monitor", "", "")
+	e.SetThumbnail(p.Image)
+	e.SendToWebhook(m.Config.Webhook)
 }
 
 func main() {
-	var link = flag.String("link", "", "link to check")
-	flag.Parse()
+	var configFile = flag.String("config", "", "link to check")
+	var proxyFile = flag.String("proxy", "", "proxy file")
 
-	if *link == "" {
-		panic(errors.New("missing link"))
-	} else {
-		availability, err := availability(*link)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(availability)
+	flag.Parse()
+	m, mErr := NewMonitor(*configFile, *proxyFile)
+	if mErr != nil {
+		panic(mErr)
 	}
+	m.Monitor()
 }
