@@ -54,7 +54,7 @@ func availability(link string) (bool, error) {
 	if buttonText != "" && buttonText == "Add to Cart" {
 		return true, nil
 	}
-	return false, nil
+	return false, nil //
 }
 
 func main() {
