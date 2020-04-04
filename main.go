@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -58,7 +59,7 @@ func redMessage(msg string) {
 	color.Red("[ %s ] %s", getTime(), msg)
 }
 
-func availability(link string) (*ProductInfo, error) {
+func availability(link string, m Monitor) (*ProductInfo, error) {
 	start := time.Now()
 
 	headers := map[string]string{
@@ -79,7 +80,21 @@ func availability(link string) (*ProductInfo, error) {
 		return &ProductInfo{}, reqErr
 	}
 
-	client := &http.Client{}
+	var client *http.Client
+	if m.UseProxies == true {
+		proxy, proxyErr := m.Manager.NextProxy()
+		if proxyErr != nil {
+			return &ProductInfo{}, proxyErr
+		}
+		proxyUrl, err := url.Parse(proxy)
+		if err != nil {
+			return &ProductInfo{}, err
+		}
+		client = &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
+	} else {
+		client = &http.Client{}
+	}
+
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
