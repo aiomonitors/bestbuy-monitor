@@ -17,10 +17,9 @@ import (
 )
 
 type Config struct {
-	Webhooks  []godiscord.Webhook `json:"webhooks"`
-	Links     []string            `json:"links"`
-	Color     string              `json:"color"`
-	Groupname string              `json:"groupname"`
+	Webhooks []godiscord.Webhook `json:"webhooks"`
+	Links    []string            `json:"links"`
+	Color    string              `json:"color"`
 }
 
 type Monitor struct {
@@ -173,23 +172,25 @@ func NewMonitor(pathToConfig string, proxyPath string) (*Monitor, error) {
 func (m Monitor) Monitor() {
 	i := true
 	for i == true {
-		for _, link := range m.Config.Links {
-			req, reqErr := availability(link, m)
-			yellowMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, req.SKU))
-			if reqErr != nil {
-				redMessage(fmt.Sprintf("Error initializing link %s %v", link, reqErr))
-			} else {
-				if m.Availability[link] == false && req.Availability == true {
-					m.Availability[link] = true
-					greenMessage(fmt.Sprintf("%s in stock!", req.SKU))
-					m.SendEmbed(req)
-				} else if m.Availability[link] == true && req.Availability == false {
-					m.Availability[link] = false
-					redMessage(fmt.Sprintf("%s is out of stock", req.SKU))
+		go func() {
+			for _, link := range m.Config.Links {
+				req, reqErr := availability(link, m)
+				yellowMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, req.SKU))
+				if reqErr != nil {
+					redMessage(fmt.Sprintf("Error initializing link %s %v", link, reqErr))
+				} else {
+					if m.Availability[link] == false && req.Availability == true {
+						m.Availability[link] = true
+						greenMessage(fmt.Sprintf("%s in stock!", req.SKU))
+						m.SendEmbed(req)
+					} else if m.Availability[link] == true && req.Availability == false {
+						m.Availability[link] = false
+						redMessage(fmt.Sprintf("%s is out of stock", req.SKU))
+					}
 				}
 			}
-		}
-		time.Sleep(time.Millisecond * 1500)
+		}()
+		time.Sleep(time.Millisecond * 2000)
 	}
 }
 
