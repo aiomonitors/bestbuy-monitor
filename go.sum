@@ -1,7 +1,7 @@
 github.com/PuerkitoBio/goquery v1.5.1 h1:PSPBGne8NIUWw+/7vFBV+kG2J/5MOjbzc7154OaKCSE=
 github.com/PuerkitoBio/goquery v1.5.1/go.mod h1:GsLWisAFVj4WgDibEWF4pvYnkVQBpKBKeU+7zCJoLcc=
-github.com/aiomonitors/godiscord v0.0.0-20200402215558-10cec0b18024 h1:7ZFNXBZGdcql9KDgQ37mqorrbVw7DrjpCKTVHu2Xffg=
-github.com/aiomonitors/godiscord v0.0.0-20200402215558-10cec0b18024/go.mod h1:LXgHQsyfPhr3tpaib4yKCX7vaeSlAZSHfbb02DvXw5g=
+github.com/aiomonitors/godiscord v0.0.0-20200404225218-7c33da1505b1 h1:hGYyVJ1a2+lbyEL0vjuY13wAsE2Xo1GyUfmv8YJlezs=
+github.com/aiomonitors/godiscord v0.0.0-20200404225218-7c33da1505b1/go.mod h1:LXgHQsyfPhr3tpaib4yKCX7vaeSlAZSHfbb02DvXw5g=
 github.com/aiomonitors/goproxymanager v0.0.0-20200401004241-4452e3f86ee0 h1:LEdgDcy7/3d35QbjGgWlbaEd8bSOfdJpVXGzVYNiAy4=
 github.com/aiomonitors/goproxymanager v0.0.0-20200401004241-4452e3f86ee0/go.mod h1:xwWPf5GQ0QBLCicRmmANiXxPnJV6Hw12mxXLwnzpbcQ=
 github.com/andybalholm/cascadia v1.1.0 h1:BuuO6sSfQNFRu1LppgbD25Hr2vLYW25JvxHs5zzsLTo=

@@ -17,10 +17,10 @@ import (
 )
 
 type Config struct {
-	Webhook   string   `json:"webhook"`
-	Links     []string `json:"links"`
-	Color     string   `json:"color"`
-	Groupname string   `json:"groupname"`
+	Webhooks  []godiscord.Webhook `json:"webhooks"`
+	Links     []string            `json:"links"`
+	Color     string              `json:"color"`
+	Groupname string              `json:"groupname"`
 }
 
 type Monitor struct {
@@ -175,12 +175,13 @@ func (m Monitor) Monitor() {
 	for i == true {
 		for _, link := range m.Config.Links {
 			req, reqErr := availability(link, m)
-			greenMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, req.SKU))
+			yellowMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, req.SKU))
 			if reqErr != nil {
 				redMessage(fmt.Sprintf("Error initializing link %s %v", link, reqErr))
 			} else {
 				if m.Availability[link] == false && req.Availability == true {
 					m.Availability[link] = true
+					greenMessage(fmt.Sprintf("%s in stock!", req.SKU))
 					m.SendEmbed(req)
 				} else if m.Availability[link] == true && req.Availability == false {
 					m.Availability[link] = false
@@ -193,12 +194,15 @@ func (m Monitor) Monitor() {
 }
 
 func (m Monitor) SendEmbed(p *ProductInfo) {
-	e := godiscord.NewEmbed(p.Name, fmt.Sprintf("In Stock: True"), p.Link)
-	e.SetFooter(m.Config.Groupname, "")
-	e.SetColor("#16A085")
-	e.SetAuthor("Best Buy Monitor", "", "")
-	e.SetThumbnail(p.Image)
-	e.SendToWebhook(m.Config.Webhook)
+	for _, webhook := range m.Config.Webhooks {
+		e := godiscord.NewEmbed(p.Name, fmt.Sprintf("In Stock: True"), p.Link)
+		e.SetFooter(webhook.Text, webhook.IconURL)
+		e.SetColor("#16A085")
+		e.SetAuthor("Best Buy Monitor", "", "")
+		e.SetThumbnail(p.Image)
+		e.SendToWebhook(webhook.URL)
+	}
+
 }
 
 func main() {
