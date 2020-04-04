@@ -11,10 +11,14 @@ Go 1.1+
 2. Setup your `config.json` file. It should look like the file below. Links should be an array of links, not a string. 
 ```json
 {
-    "webhook" : "https://canary.discordapp.com/api/webhooks/WEBHOOK",
+    "webhooks" : [
+        {
+            "webhook" : "WEBHOOK URL HERE",
+            "icon_url" : "Link to icon here, or leave as empty string",
+            "text" : "Name to display in footer, or leave empty"
+        }
+    ],
     "color" : "#F1B379",
-    "icon" : "ICON URL HERE", 
-    "groupname" : "GROUPNAME HERE",
     "links" : ["https://www.bestbuy.com/site/nintendo-switch-32gb-console-neon-red-neon-blue-joy-con/6364255.p?skuId=6364255"]
 }
 ```
