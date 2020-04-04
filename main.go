@@ -40,7 +40,7 @@ type ProductInfo struct {
 }
 
 func getTime() string {
-	return time.Now().Format("15:02:06.111")
+	return time.Now().Format("15:04:05")
 }
 
 func printErr(err error) {
@@ -75,11 +75,7 @@ func availability(link string, m Monitor) (*ProductInfo, error) {
 		"referer":                   "https://www.bestbuy.com/site/searchpage.jsp?st=nintendo+switch&_dyncharset=UTF-8&id=pcat17071&type=page&sc=Global&cp=1&nrp=&sp=&qp=&list=n&af=true&iht=y&usc=All+Categories&ks=960&keys=keys",
 		"accept-language":           "en-US,en;q=0.9",
 	}
-	req, reqErr := http.NewRequest("GET", link, nil)
-	if reqErr != nil {
-		return &ProductInfo{}, reqErr
-	}
-
+	//Sets up http client with proxies if monitor uses proxies
 	var client *http.Client
 	if m.UseProxies == true {
 		proxy, proxyErr := m.Manager.NextProxy()
@@ -95,9 +91,16 @@ func availability(link string, m Monitor) (*ProductInfo, error) {
 		client = &http.Client{}
 	}
 
+	//Sets up HTTP requests
+	req, reqErr := http.NewRequest("GET", link, nil)
+	if reqErr != nil {
+		return &ProductInfo{}, reqErr
+	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+
+	//Does request
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		return &ProductInfo{}, resErr
@@ -155,7 +158,7 @@ func NewMonitor(pathToConfig string, proxyPath string) (*Monitor, error) {
 	//Initialize links
 	m.Availability = make(map[string]bool)
 	for _, link := range m.Config.Links {
-		req, reqErr := availability(link)
+		req, reqErr := availability(link, m)
 		if reqErr != nil {
 			redMessage(fmt.Sprintf("%s error getting link", link))
 			m.Availability[link] = true
@@ -171,7 +174,7 @@ func (m Monitor) Monitor() {
 	i := true
 	for i == true {
 		for _, link := range m.Config.Links {
-			req, reqErr := availability(link)
+			req, reqErr := availability(link, m)
 			greenMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, req.SKU))
 			if reqErr != nil {
 				redMessage(fmt.Sprintf("Error initializing link %s %v", link, reqErr))
