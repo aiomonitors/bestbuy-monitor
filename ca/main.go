@@ -85,7 +85,7 @@ func GreenMessage(msg string) {
 	color.Green("[ %s ] %s", GetTime(), msg)
 }
 
-func YelloMessage(msg string) {
+func YellowMessage(msg string) {
 	color.Yellow("[ %s ] %s", GetTime(), msg)
 }
 
@@ -128,7 +128,7 @@ func NewMonitor(pathToConfig string, proxyPath string) (*Monitor, error) {
 	return &m, nil
 }
 
-func (m Monitor) UpdateClient() error {
+func (m *Monitor) UpdateClient() error {
 	if m.UseProxies == true {
 		proxy, proxyErr := m.Manager.NextProxy()
 		if proxyErr != nil {
@@ -235,6 +235,7 @@ func (m *Monitor) Initialize() {
 		req, reqErr := m.GetInfo(sku)
 		if reqErr != nil {
 			PrintErr(reqErr)
+			m.ProductInfo[sku] = ProductInfo{}
 		} else {
 			m.ProductInfo[sku] = *req
 			GreenMessage(fmt.Sprintf("[ %s ] Initialized %s", *&req.Exec, *&req.Name))
@@ -244,21 +245,64 @@ func (m *Monitor) Initialize() {
 	for _, sku := range m.Config.SKUs {
 		req, reqErr := m.GetStock(sku)
 		if reqErr != nil {
-			panic(reqErr)
+			PrintErr(reqErr)
+			m.Availability[sku] = false
 		} else {
 			m.Availability[sku] = req.Available
-			fmt.Println(req)
-			GreenMessage(fmt.Sprintf("[ %s ] Initialized Stock for %s", *&req.Exec, sku))
+			GreenMessage(fmt.Sprintf("[ %s ] Initialized Stock for %s", *&req.Exec, sku, *&req.Available))
 		}
 	}
 }
 
+func (m *Monitor) Monitor() {
+	i := true
+	for i == true {
+		for _, sku := range m.Config.SKUs {
+			go func(sku string) {
+				req, reqErr := m.GetStock(sku)
+				if reqErr != nil {
+					PrintErr(reqErr)
+					return
+				}
+				YellowMessage(fmt.Sprintf("[ %s ] Monitoring %s", req.Exec, m.ProductInfo[sku].Name))
+
+				if req.Available == true && m.Availability[sku] == false {
+					m.Availability[sku] = true
+					go m.SendEmbed(sku, *req)
+					GreenMessage(fmt.Sprintf("%s Restocked! %v", sku, req.Available))
+				} else if req.Available == false && m.Availability[sku] == true {
+					m.Availability[sku] = true
+					RedMessage(fmt.Sprintf("%s Out of stock! %s", sku, req.Available))
+				}
+				return
+			}(sku)
+		}
+		time.Sleep(time.Millisecond * 1000)
+	}
+}
+
+func (m *Monitor) SendEmbed(sku string, s ProductStock) {
+	prod := m.ProductInfo[sku]
+	for _, webhook := range m.Config.Webhooks {
+		go func(webhook *godiscord.Webhook, p *ProductInfo, s *ProductStock) {
+			e := godiscord.NewEmbed(p.Name, fmt.Sprintf("__**Price:**__ %s", p.Price), p.Link)
+			e.AddField("Availability", "In Stock", true)
+			e.AddField("Stock", fmt.Sprintf("%d", s.Stock), true)
+			e.SetFooter(webhook.Text, webhook.IconURL)
+			e.SetColor("#16A085")
+			e.SetAuthor("BestBuy CA Monitor", "", "")
+			e.SetThumbnail(p.Image)
+			e.SendToWebhook(webhook.URL)
+		}(&webhook, &prod, &s)
+	}
+}
+
 func main() {
-	m, mErr := NewMonitor("../config.json", "")
+	m, mErr := NewMonitor("./config.json", "")
 	if mErr != nil {
 		panic(mErr)
 	}
 
 	m.Initialize()
-	fmt.Println(m.Availability)
+	m.Monitor()
 }
