@@ -35,6 +35,7 @@ var headers2 = map[string]string{
 	"accept":          "application/json, text/javascript, */*; q=0.01",
 	"referer":         "https://www.bestbuy.ca/en-ca/product/nintendo-switch-console-with-grey-joy-con/13817626",
 	"accept-language": "en-US,en;q=0.9",
+	"Cache-Control":   "no-cache",
 }
 
 type ProductInfo struct {

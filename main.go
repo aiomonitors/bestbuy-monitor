@@ -66,13 +66,10 @@ func availability(link string, m Monitor) (*ProductInfo, error) {
 		"cache-control":             "max-age=0",
 		"upgrade-insecure-requests": "1",
 		"user-agent":                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36",
-		"sec-fetch-dest":            "document",
 		"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-		"sec-fetch-site":            "same-origin",
-		"sec-fetch-mode":            "navigate",
-		"sec-fetch-user":            "?1",
 		"referer":                   "https://www.bestbuy.com/site/searchpage.jsp?st=nintendo+switch&_dyncharset=UTF-8&id=pcat17071&type=page&sc=Global&cp=1&nrp=&sp=&qp=&list=n&af=true&iht=y&usc=All+Categories&ks=960&keys=keys",
 		"accept-language":           "en-US,en;q=0.9",
+		"Cache-Control":             "no-cache",
 	}
 	//Sets up http client with proxies if monitor uses proxies
 	var client *http.Client
@@ -182,7 +179,7 @@ func (m Monitor) Monitor() {
 					if m.Availability[link] == false && req.Availability == true {
 						m.Availability[link] = true
 						greenMessage(fmt.Sprintf("%s in stock!", req.SKU))
-						m.SendEmbed(req)
+						go m.SendEmbed(req)
 					} else if m.Availability[link] == true && req.Availability == false {
 						m.Availability[link] = false
 						redMessage(fmt.Sprintf("%s is out of stock", req.SKU))
@@ -196,12 +193,14 @@ func (m Monitor) Monitor() {
 
 func (m Monitor) SendEmbed(p *ProductInfo) {
 	for _, webhook := range m.Config.Webhooks {
-		e := godiscord.NewEmbed(p.Name, fmt.Sprintf("In Stock: True"), p.Link)
-		e.SetFooter(webhook.Text, webhook.IconURL)
-		e.SetColor("#16A085")
-		e.SetAuthor("Best Buy Monitor", "", "")
-		e.SetThumbnail(p.Image)
-		e.SendToWebhook(webhook.URL)
+		go func(webhook godiscord.Webhook, p *ProductInfo) {
+			e := godiscord.NewEmbed(p.Name, fmt.Sprintf("In Stock: True"), p.Link)
+			e.SetFooter(webhook.Text, webhook.IconURL)
+			e.SetColor("#16A085")
+			e.SetAuthor("Best Buy Monitor", "", "")
+			e.SetThumbnail(p.Image)
+			e.SendToWebhook(webhook.URL)
+		}(webhook, p)
 	}
 
 }
