@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -180,7 +181,7 @@ func (m *Monitor) GetStockJSON() (map[string]bool, error) {
 	defRes := map[string]bool{}
 	rand.Seed(time.Now().UnixNano())
 	//[["shop","buttonstate","v5","item","skus",[6364255,6364253,6401728,6342914,6342915,6289641,5761912,2588445,4503702,6084400],"conditions","NONE","destinationZipCode",11581,"storeId",950,"context","cyp","addAll","false"]]
-	link := "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22,%22buttonstate%22,%22v5%22,%22item%22,%22skus%22,%5B6364255,6364253,6401728,6342914,6342915,6289641,5761912,2588445,4503702,6321794,6352149,6394775,6084400,6343150%5D,%22conditions%22,%22NONE%22,%22destinationZipCode%22,11581,%22storeId%22,950,%22context%22,%22cyp%22,%22addAll%22,%22false%22%5D%5D&method=post" + fmt.Sprintf("&rand=%s", rand.Int63n(12312371928371283))
+	link := "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22,%22buttonstate%22,%22v5%22,%22item%22,%22skus%22,%5B" + strings.Join(m.Config.SKUs, ",") + "%5D,%22conditions%22,%22NONE%22,%22destinationZipCode%22,11581,%22storeId%22,950,%22context%22,%22cyp%22,%22addAll%22,%22false%22%5D%5D&method=post" + fmt.Sprintf("&rand=%s", rand.Int63n(12312371928371283))
 
 	req, reqErr := http.NewRequest("GET", link, nil)
 	if reqErr != nil {
